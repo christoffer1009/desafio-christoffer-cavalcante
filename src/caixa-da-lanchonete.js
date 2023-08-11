@@ -71,33 +71,75 @@ class CaixaDaLanchonete {
         return false
     }
 
-    metodoDePagamentoInvalido(metodoDePagamento) {
-        return !this.metodosDePagamento.includes(metodoDePagamento)
+    validaMetodoDePagamento(metodoDePagamento) {
+        if (!this.metodosDePagamento.includes(metodoDePagamento)) { return { erro: true, mensagem: 'Forma de pagamento inválida!' } }
+
+        return true
     }
 
+    validaItens(itens) {
+
+        const itensMap = this.mapearitens(itens)
+
+        if (itensMap.some(i => i.quantidade === 0))
+            return { erro: true, mensagem: 'Quantidade inválida!' }
+
+        if (itensMap.length === 0)
+            return { erro: true, mensagem: 'Não há itens no carrinho de compra!' }
+
+
+        if (this.contemExtraSemPrincipal(itensMap))
+            return { erro: true, mensagem: 'Item extra não pode ser pedido sem o principal' }
+
+        let codigoInvalido
+        itensMap.forEach(i => {
+            if (!this.cardapio.some(item => item.codigo === i.codigo)) {
+                codigoInvalido = true;
+            }
+        });
+
+        if (codigoInvalido)
+            return { erro: true, mensagem: 'Item inválido!' }
+
+        return true
+    }
 
     calcularValorDaCompra(metodoDePagamento, itens) {
         const itensMap = this.mapearitens(itens)
-        const itensInvalidos = this.contemExtraSemPrincipal(itensMap)
-        if (itensInvalidos) {
-            return 'Item extra não pode ser pedido sem o principal'
+
+        let valorCompra = 0
+
+
+
+        const metodoDePagamentoValido = this.validaMetodoDePagamento(metodoDePagamento)
+        if (metodoDePagamentoValido.erro) {
+            return metodoDePagamentoValido.mensagem
         }
 
-        const metodoInvalido = this.metodoDePagamentoInvalido(metodoDePagamento)
-        if (metodoInvalido) {
-            return 'Forma de pagamento inválida!'
+        const itensValidos = this.validaItens(itens)
+        if (itensValidos.erro) {
+            return itensValidos.mensagem
         }
-        let valorCompra = 0
-        itens.forEach(item => {
-            let itemMap = this.mapearItem(item)
-            valorCompra += itemMap.quantidade * this.cardapio.find((i) => i.codigo === itemMap.codigo).valor
+
+        itensMap.forEach(item => {
+            valorCompra += item.quantidade * this.cardapio.find((i) => i.codigo === item.codigo).valor
         });
+
+        switch (metodoDePagamento) {
+            case 'credito':
+                valorCompra *= 1.03
+                break;
+            case 'dinheiro':
+                valorCompra *= 0.95
+            default:
+                break;
+        }
 
         return `R$ ${valorCompra.toFixed(2).replace('.', ',')}`;
     }
 
 }
 
-console.log(new CaixaDaLanchonete().calcularValorDaCompra('credito', ['sanduiche,1', 'cafe,1']))
+console.log(new CaixaDaLanchonete().calcularValorDaCompra('credito', ['sanduiche,1', 'queijo,0']))
 
 export { CaixaDaLanchonete };
